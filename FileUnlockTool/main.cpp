@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
 	const std::string sevenzip_path = "\"" + program_path + "/7z\"";
 	argparse::ArgumentParser program("FileUnlockTool", version);
 	program.add_argument("-p", "--password_file_path")
-		.default_value(std::string(program_path + "/key.txt"))
+		.default_value("")
 		.help("The file path for storing passwords");
 	program.add_argument("files")
 		.remaining()
@@ -25,18 +25,20 @@ int main(int argc, char* argv[]) {
 	auto password_file_path = program.get<std::string>("-p");
 	auto files = program.get<std::vector<std::string>>("files");
 
-	std::ifstream password_file(password_file_path);
-	if (!password_file.is_open()) {
-		std::cerr << "error to open " << password_file_path << std::endl;
-		return 1;
-	}
 	std::string line;
 	std::vector<std::string>passwords{ "" };
-	while (std::getline(password_file, line)) {
-		passwords.push_back(line);
+	if (password_file_path != "") {
+		std::ifstream password_file(password_file_path);
+		if (!password_file.is_open()) {
+			std::cerr << "error to open " << password_file_path << std::endl;
+		}
+		else {
+			while (std::getline(password_file, line)) {
+				passwords.push_back(line);
+			}
+			password_file.close();
+		}
 	}
-	password_file.close();
-
 	for (const auto& file : files) {
 		bool flag = false;
 		for (const auto& password : passwords) {
@@ -47,11 +49,11 @@ int main(int argc, char* argv[]) {
 				flag = true;
 				break;
 			}
-			else if (std::filesystem::exists(file+"~")) {
+			else if (std::filesystem::exists(file + "~")) {
 				std::filesystem::remove_all(file + "~");
 			}
 		}
-		if(!flag) {
+		if (!flag) {
 			std::cout << file + " fail!" << std::endl;
 		}
 	}
