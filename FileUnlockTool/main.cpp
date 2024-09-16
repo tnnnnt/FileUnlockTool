@@ -9,7 +9,7 @@ const std::string program_path = (std::filesystem::canonical(std::filesystem::cu
 const std::string sevenzip_path = "\"" + program_path + "/7z\"";
 static bool building_brute_force_password(const std::string& iterative_chars, std::string password, const size_t& len, const std::string& file) {
 	if (password.size() == len) {
-		std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\"\"";
+		std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
 		int exit_code = system(cmd.c_str());
 		if (!exit_code) {
 			std::cout << file + " success!\npassword is \"" + password + "\"" << std::endl;
@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 	for (const auto& file : files) {
 		bool flag = false;
 		for (const auto& password : passwords) {
-			std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\"\"";
+			std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
 			int exit_code = system(cmd.c_str());
 			if (!exit_code) {
 				std::cout << file + " success!\npassword is \"" + password + "\"" << std::endl;
