@@ -3,10 +3,19 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <windows.h>
 
 const std::string version = "2024.9.16";
-const std::string program_path = (std::filesystem::canonical(std::filesystem::current_path() / ".")).string();
+TCHAR executablePath[MAX_PATH];
+const std::string program_path = (GetModuleFileName(NULL, executablePath, MAX_PATH), std::filesystem::path(executablePath).parent_path()).string();
 const std::string sevenzip_path = "\"" + program_path + "/7z\"";
+
+static void print(const std::string& s) {
+	std::cout << s << std::endl;
+}
+static void print(const int& a) {
+	std::cout << a << std::endl;
+}
 static bool building_brute_force_password(const std::string& iterative_chars, std::string password, const size_t& len, const std::string& file) {
 	if (password.size() == len) {
 		std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
@@ -85,6 +94,7 @@ int main(int argc, char* argv[]) {
 		bool flag = false;
 		for (const auto& password : passwords) {
 			std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
+			//print(cmd);
 			int exit_code = system(cmd.c_str());
 			if (!exit_code) {
 				std::cout << file + " success!\npassword is \"" + password + "\"" << std::endl;
