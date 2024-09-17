@@ -16,19 +16,22 @@ static void print(const std::string& s) {
 static void print(const int& a) {
 	std::cout << a << std::endl;
 }
+static bool try_password(const std::string& file, const std::string& password) {
+	std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
+	print(cmd);
+	int exit_code = system(cmd.c_str());
+	if (!exit_code) {
+		print(file + " success!\npassword is \"" + password + "\"");
+		return true;
+	}
+	else if (std::filesystem::exists(file + "~")) {
+		std::filesystem::remove_all(file + "~");
+		return false;
+	}
+}
 static bool building_brute_password(const std::string& chars, const std::string password, const size_t& len, const std::string& file) {
 	if (password.size() == len) {
-		std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
-		//print(cmd);
-		int exit_code = system(cmd.c_str());
-		if (!exit_code) {
-			print(file + " success!\npassword is \"" + password + "\"");
-			return true;
-		}
-		else if (std::filesystem::exists(file + "~")) {
-			std::filesystem::remove_all(file + "~");
-			return false;
-		}
+		return try_password(file, password);
 	}
 	for (const auto& c : chars) {
 		if (building_brute_password(chars, password + c, len, file)) {
@@ -67,19 +70,11 @@ int main(int argc, char* argv[]) {
 	}
 	std::ifstream key_json_file(key_json_path);
 	nlohmann::json key_json_data = nlohmann::json::parse(key_json_file);
-
 	if (flag_exact) {
 		const std::vector<std::string>& exact_passwords = key_json_data["exact"];
 		for (const auto& password : exact_passwords) {
-			std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
-			//print(cmd);
-			int exit_code = system(cmd.c_str());
-			if (!exit_code) {
-				print(file + " success!\npassword is \"" + password + "\"");
+			if (try_password(file, password)) {
 				return 0;
-			}
-			else if (std::filesystem::exists(file + "~")) {
-				std::filesystem::remove_all(file + "~");
 			}
 		}
 	}
@@ -95,6 +90,11 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
+	//if (flag_fuzzy) {
+	//	const size_t& min_len = key_json_data["fuzzy"]["min_len"];
+	//	const size_t& max_len = key_json_data["fuzzy"]["max_len"];
+	//	const std::vector<std::string>& chars = key_json_data["fuzzy"]["chars"];
+	//}
 	print(file + " fail!");
 	return -114514;
 }
