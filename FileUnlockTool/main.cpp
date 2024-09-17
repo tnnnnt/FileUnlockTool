@@ -1,27 +1,28 @@
-#include "argparse/argparse.hpp"
+#include "argparse.hpp"
+#include "json.hpp"
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <windows.h>
-
-const std::string version = "2024.9.16";
 TCHAR executablePath[MAX_PATH];
-const std::string program_path = (GetModuleFileName(NULL, executablePath, MAX_PATH), std::filesystem::path(executablePath).parent_path()).string();
+const std::string program_path = (GetModuleFileName(NULL, executablePath, MAX_PATH), std::filesystem::path(executablePath).parent_path()).generic_string();
 const std::string sevenzip_path = "\"" + program_path + "/7z\"";
-
+const std::string key_json_path = program_path + "/key.json";
+const std::string version = "2024.9.17";
 static void print(const std::string& s) {
 	std::cout << s << std::endl;
 }
 static void print(const int& a) {
 	std::cout << a << std::endl;
 }
-static bool building_brute_force_password(const std::string& iterative_chars, std::string password, const size_t& len, const std::string& file) {
+static bool building_brute_password(const std::string& chars, const std::string password, const size_t& len, const std::string& file) {
 	if (password.size() == len) {
 		std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
+		//print(cmd);
 		int exit_code = system(cmd.c_str());
 		if (!exit_code) {
-			std::cout << file + " success!\npassword is \"" + password + "\"" << std::endl;
+			print(file + " success!\npassword is \"" + password + "\"");
 			return true;
 		}
 		else if (std::filesystem::exists(file + "~")) {
@@ -29,8 +30,8 @@ static bool building_brute_force_password(const std::string& iterative_chars, st
 			return false;
 		}
 	}
-	for (const auto& c : iterative_chars) {
-		if (building_brute_force_password(iterative_chars, password + c, len, file)) {
+	for (const auto& c : chars) {
+		if (building_brute_password(chars, password + c, len, file)) {
 			return true;
 		}
 	}
@@ -38,86 +39,62 @@ static bool building_brute_force_password(const std::string& iterative_chars, st
 }
 int main(int argc, char* argv[]) {
 	argparse::ArgumentParser program("FileUnlockTool", version);
-	program.add_argument("-i", "--iterative_char_range")
-		.help("Character sequences used for brute force cracking")
-		.default_value("");
-	program.add_argument("-min", "--minimum_length")
-		.help("The minimum length for brute force or brute force password cracking")
-		.default_value(1)
-		.scan<'u', size_t>();
-	program.add_argument("-max", "--maximum_length")
-		.help("The maximum length for brute force or brute force password cracking")
-		.default_value(8)
-		.scan<'u', size_t>();
-	program.add_argument("-p", "--password_file_path")
-		.help("The file path for storing passwords")
-		.default_value("");
-	program.add_argument("files")
-		.help("The path of the compressed file that needs to be decompressed")
-		.remaining();
+	program.add_argument("-b", "--brute")
+		.help("Brute matching.")
+		.flag();
+	program.add_argument("-e", "--exact")
+		.help("Exact matching.")
+		.flag();
+	program.add_argument("-f", "--fuzzy")
+		.help("Fuzzy matching.")
+		.flag();
+	program.add_argument("file")
+		.help("The path of the compressed file that needs to be decompressed.");
 	try {
 		program.parse_args(argc, argv);
 	}
 	catch (const std::exception& err) {
 		std::cerr << err.what() << std::endl;
-		return 1;
+		return -114514;
 	}
-	const std::string iterative_char_range = program.get<std::string>("-i");
-	const size_t minimum_length = program.get<size_t>("-min");
-	const size_t maximum_length = program.get<size_t>("-max");
-	const std::string password_file_path = program.get<std::string>("-p");
-	const std::vector<std::string> files = program.get<std::vector<std::string>>("files");
+	const bool& flag_brute = program.get<bool>("-b");
+	const bool& flag_exact = program.get<bool>("-e");
+	const bool& flag_fuzzy = program.get<bool>("-f");
+	const std::string& file = program.get<std::string>("file");
+	if (!std::filesystem::exists(file)) {
+		std::cerr << file + " not found!" << std::endl;
+		return -114514;
+	}
+	std::ifstream key_json_file(key_json_path);
+	nlohmann::json key_json_data = nlohmann::json::parse(key_json_file);
 
-	std::string line;
-	std::vector<std::string>passwords{ "" };
-	if (password_file_path != "") {
-		std::ifstream password_file(password_file_path);
-		if (!password_file.is_open()) {
-			std::cerr << "error to open " << password_file_path << std::endl;
-		}
-		else {
-			while (std::getline(password_file, line)) {
-				passwords.push_back(line);
-			}
-			password_file.close();
-		}
-	}
-	std::set<char>set_iterative_chars;
-	std::string iterative_chars = "";
-	for (const auto& c : iterative_char_range) {
-		set_iterative_chars.insert(c);
-	}
-	for (const auto& it : set_iterative_chars) {
-		iterative_chars += it;
-	}
-	for (const auto& file : files) {
-		bool flag = false;
-		for (const auto& password : passwords) {
+	if (flag_exact) {
+		const std::vector<std::string>& exact_passwords = key_json_data["exact"];
+		for (const auto& password : exact_passwords) {
 			std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
 			//print(cmd);
 			int exit_code = system(cmd.c_str());
 			if (!exit_code) {
-				std::cout << file + " success!\npassword is \"" + password + "\"" << std::endl;
-				flag = true;
-				break;
+				print(file + " success!\npassword is \"" + password + "\"");
+				return 0;
 			}
 			else if (std::filesystem::exists(file + "~")) {
 				std::filesystem::remove_all(file + "~");
 			}
 		}
-		if (!flag) {
-			if (minimum_length <= maximum_length && iterative_char_range != "") {
-				for (size_t len = minimum_length; len <= maximum_length; ++len) {
-					if (building_brute_force_password(iterative_chars, "", len, file)) {
-						flag = true;
-						break;
-					}
+	}
+	if (flag_brute) {
+		const size_t& min_len = key_json_data["brute"]["min_len"];
+		const size_t& max_len = key_json_data["brute"]["max_len"];
+		const std::string& chars = key_json_data["brute"]["chars"];
+		if (min_len <= max_len && chars != "") {
+			for (size_t len = min_len; len <= max_len; ++len) {
+				if (building_brute_password(chars, "", len, file)) {
+					return 0;
 				}
-			}
-			if (!flag) {
-				std::cout << file + " fail!" << std::endl;
 			}
 		}
 	}
-	return 0;
+	print(file + " fail!");
+	return -114514;
 }
