@@ -5,18 +5,13 @@
 #include <fstream>
 #include <iostream>
 #include <windows.h>
-TCHAR executablePath[MAX_PATH];
-const std::string program_path = (GetModuleFileName(NULL, executablePath, MAX_PATH), std::filesystem::path(executablePath).parent_path()).generic_string();
-const std::string sevenzip_path = "\"" + program_path + "/7z\"";
-const std::string key_json_path = program_path + "/key.json";
-const std::string version = "2024.9.17";
 static void print(const std::string& s) {
 	std::cout << s << std::endl;
 }
 static void print(const int& a) {
 	std::cout << a << std::endl;
 }
-static bool try_password(const std::string& file, const std::string& password) {
+static bool try_password(const std::string& sevenzip_path, const std::string& file, const std::string& password) {
 	std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" \"" + file + "\" > NUL 2>&1\"";
 	print(cmd);
 	int exit_code = system(cmd.c_str());
@@ -26,21 +21,25 @@ static bool try_password(const std::string& file, const std::string& password) {
 	}
 	else if (std::filesystem::exists(file + "~")) {
 		std::filesystem::remove_all(file + "~");
-		return false;
 	}
+	return false;
 }
-static bool building_brute_password(const std::string& chars, const std::string password, const size_t& len, const std::string& file) {
+static bool building_brute_password(const std::string& sevenzip_path, const std::string& chars, const std::string password, const size_t& len, const std::string& file) {
 	if (password.size() == len) {
-		return try_password(file, password);
+		return try_password(sevenzip_path, file, password);
 	}
 	for (const auto& c : chars) {
-		if (building_brute_password(chars, password + c, len, file)) {
+		if (building_brute_password(sevenzip_path, chars, password + c, len, file)) {
 			return true;
 		}
 	}
 	return false;
 }
 int main(int argc, char* argv[]) {
+	const std::string version = "2024.9.17";
+	const std::string program_path = std::filesystem::absolute(argv[0]).parent_path().string();
+	const std::string sevenzip_path = "\"" + program_path + "/7z\"";
+	const std::string key_json_path = program_path + "/key.json";
 	argparse::ArgumentParser program("FileUnlockTool", version);
 	program.add_argument("-b", "--brute")
 		.help("Brute matching.")
@@ -73,7 +72,7 @@ int main(int argc, char* argv[]) {
 	if (flag_exact) {
 		const std::vector<std::string>& exact_passwords = key_json_data["exact"];
 		for (const auto& password : exact_passwords) {
-			if (try_password(file, password)) {
+			if (try_password(sevenzip_path, file, password)) {
 				return 0;
 			}
 		}
@@ -84,7 +83,7 @@ int main(int argc, char* argv[]) {
 		const std::string& chars = key_json_data["brute"]["chars"];
 		if (min_len <= max_len && chars != "") {
 			for (size_t len = min_len; len <= max_len; ++len) {
-				if (building_brute_password(chars, "", len, file)) {
+				if (building_brute_password(sevenzip_path, chars, "", len, file)) {
 					return 0;
 				}
 			}
