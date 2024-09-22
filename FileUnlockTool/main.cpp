@@ -59,12 +59,15 @@ static bool building_brute_password(const std::string& sevenzip_path, const std:
 	}
 	return false;
 }
-static bool decompress_zip(const std::string& sevenzip_path, const std::string& password, const std::string& file) {
+static bool decompress_zip(const std::string& sevenzip_path, const std::string& password, const std::string& file, const bool& flag_save_zip) {
 	std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" -y \"" + file + "\" > NUL 2>&1\"";
 	print(cmd);
 	int exit_code = system(cmd.c_str());
 	if (!exit_code) {
 		print("decompress success!");
+		if (!flag_save_zip) {
+			std::filesystem::remove(file);
+		}
 		return true;
 	}
 	if (std::filesystem::exists(file + "~")) {
@@ -86,6 +89,9 @@ int main(int argc, char* argv[]) {
 	program.add_argument("-e", "--exact")
 		.help("Exact matching.")
 		.flag();
+	program.add_argument("-s", "--save_zip")
+		.help("Save the original compressed file after successful decompression.")
+		.flag();
 	program.add_argument("file")
 		.help("The path of the compressed file that needs to be decompressed.");
 	try {
@@ -97,12 +103,13 @@ int main(int argc, char* argv[]) {
 	}
 	const bool& flag_brute = program.get<bool>("-b");
 	const bool& flag_exact = program.get<bool>("-e");
+	const bool& flag_save_zip = program.get<bool>("-s");
 	const std::string& file = program.get<std::string>("file");
 	if (!std::filesystem::exists(file)) {
 		std::cerr << file + " not found!" << std::endl;
 		return -114514;
 	}
-	std::string one_file = get_one_file_from_zip(sevenzip_path, file);
+	const std::string& one_file = get_one_file_from_zip(sevenzip_path, file);
 	if (one_file == "") {
 		std::cerr << file + " is not a zip file!" << std::endl;
 		return -114514;
@@ -113,7 +120,7 @@ int main(int argc, char* argv[]) {
 		const std::vector<std::string>& exact_passwords = key_json_data["exact"];
 		for (const auto& password : exact_passwords) {
 			if (try_password(sevenzip_path, file, password, one_file)) {
-				if (decompress_zip(sevenzip_path, password, file)) {
+				if (decompress_zip(sevenzip_path, password, file, flag_save_zip)) {
 					return 0;
 				}
 				return -114514;
@@ -128,7 +135,7 @@ int main(int argc, char* argv[]) {
 		if (min_len <= max_len && chars != "") {
 			for (size_t len = min_len; len <= max_len; ++len) {
 				if (building_brute_password(sevenzip_path, chars, "", len, file, one_file, password)) {
-					if (decompress_zip(sevenzip_path, password, file)) {
+					if (decompress_zip(sevenzip_path, password, file, flag_save_zip)) {
 						return 0;
 					}
 					return -114514;
