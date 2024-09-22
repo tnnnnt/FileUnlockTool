@@ -12,8 +12,7 @@ static void print(const int& a) {
 	std::cout << a << std::endl;
 }
 static std::string get_one_file_from_zip(const std::string& sevenzip_path, const std::string& zip_file) {
-	const std::string command = "\"" + sevenzip_path + " l \"" + zip_file + "\"\"";
-	print(command);
+	const std::string command = "\"" + sevenzip_path + " l -p1 \"" + zip_file + "\"\"";
 	std::string output = "";
 	char buffer[128];
 	// 打开管道
@@ -32,13 +31,13 @@ static std::string get_one_file_from_zip(const std::string& sevenzip_path, const
 	std::string line;
 	while (getline(output_stream, line)) {
 		if (line.length() > 53 && (line.substr(20, 5) == "....A" || line.substr(20, 5) == ".....")) {
-			return line.substr(53);
+			return "\"" + line.substr(53) + "\"";
 		}
 	}
 	return "";
 }
 static bool try_password(const std::string& sevenzip_path, const std::string& file, const std::string& password, const std::string& one_file) {
-	std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" -y \"" + file + "\" \"" + one_file + "\" > NUL 2>&1\"";
+	std::string cmd = "\"" + sevenzip_path + " x -o\"" + file + "~\" -p\"" + password + "\" -y \"" + file + "\" " + one_file + " > NUL 2>&1\"";
 	print(cmd);
 	int exit_code = system(cmd.c_str());
 	if (!exit_code) {
@@ -110,10 +109,6 @@ int main(int argc, char* argv[]) {
 		return -114514;
 	}
 	const std::string& one_file = get_one_file_from_zip(sevenzip_path, file);
-	if (one_file == "") {
-		std::cerr << file + " is not a zip file!" << std::endl;
-		return -114514;
-	}
 	std::ifstream key_json_file(key_json_path);
 	nlohmann::json key_json_data = nlohmann::json::parse(key_json_file);
 	if (flag_exact) {
