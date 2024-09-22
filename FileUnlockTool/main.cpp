@@ -13,6 +13,7 @@ static void print(const int& a) {
 }
 static std::string get_one_file_from_zip(const std::string& sevenzip_path, const std::string& zip_file) {
 	const std::string command = "\"" + sevenzip_path + " l \"" + zip_file + "\"\"";
+	print(command);
 	std::string output = "";
 	char buffer[128];
 	// 打开管道
@@ -30,7 +31,7 @@ static std::string get_one_file_from_zip(const std::string& sevenzip_path, const
 	std::stringstream output_stream(output);
 	std::string line;
 	while (getline(output_stream, line)) {
-		if (line.length() > 53 && line.substr(20, 5) == "....A") {
+		if (line.length() > 53 && (line.substr(20, 5) == "....A" || line.substr(20, 5) == ".....")) {
 			return line.substr(53);
 		}
 	}
