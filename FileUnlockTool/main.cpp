@@ -63,8 +63,14 @@ static bool decompress_zip(const std::string& sevenzip_path, const std::string& 
 	print(cmd);
 	int exit_code = system(cmd.c_str());
 	if (!exit_code) {
+		print("decompress success!");
 		return true;
 	}
+	if (std::filesystem::exists(file + "~")) {
+		std::filesystem::remove_all(file + "~");
+	}
+	std::cerr << "decompress failed!" << std::endl;
+	std::cerr << file + " fail!" << std::endl;
 	return false;
 }
 int main(int argc, char* argv[]) {
@@ -106,15 +112,10 @@ int main(int argc, char* argv[]) {
 		const std::vector<std::string>& exact_passwords = key_json_data["exact"];
 		for (const auto& password : exact_passwords) {
 			if (try_password(sevenzip_path, file, password, one_file)) {
-				if (!decompress_zip(sevenzip_path, password, file)) {
-					if (std::filesystem::exists(file + "~")) {
-						std::filesystem::remove_all(file + "~");
-					}
-					std::cerr << "decompress failed!" << std::endl;
-					return -114514;
+				if (decompress_zip(sevenzip_path, password, file)) {
+					return 0;
 				}
-				print("decompress success!");
-				return 0;
+				return -114514;
 			}
 		}
 	}
@@ -126,19 +127,14 @@ int main(int argc, char* argv[]) {
 		if (min_len <= max_len && chars != "") {
 			for (size_t len = min_len; len <= max_len; ++len) {
 				if (building_brute_password(sevenzip_path, chars, "", len, file, one_file, password)) {
-					if (!decompress_zip(sevenzip_path, password, file)) {
-						if (std::filesystem::exists(file + "~")) {
-							std::filesystem::remove_all(file + "~");
-						}
-						std::cerr << "decompress failed!" << std::endl;
-						return -114514;
+					if (decompress_zip(sevenzip_path, password, file)) {
+						return 0;
 					}
-					print("decompress success!");
-					return 0;
+					return -114514;
 				}
 			}
 		}
 	}
-	print(file + " fail!");
+	std::cerr << file + " fail!" << std::endl;
 	return -114514;
 }
