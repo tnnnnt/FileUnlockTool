@@ -79,9 +79,6 @@ int main(int argc, char* argv[]) {
 	program.add_argument("-e", "--exact")
 		.help("Exact matching.")
 		.flag();
-	program.add_argument("-f", "--fuzzy")
-		.help("Fuzzy matching.")
-		.flag();
 	program.add_argument("file")
 		.help("The path of the compressed file that needs to be decompressed.");
 	try {
@@ -93,7 +90,6 @@ int main(int argc, char* argv[]) {
 	}
 	const bool& flag_brute = program.get<bool>("-b");
 	const bool& flag_exact = program.get<bool>("-e");
-	const bool& flag_fuzzy = program.get<bool>("-f");
 	const std::string& file = program.get<std::string>("file");
 	if (!std::filesystem::exists(file)) {
 		std::cerr << file + " not found!" << std::endl;
@@ -143,11 +139,6 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
-	//if (flag_fuzzy) {
-	//	const size_t& min_len = key_json_data["fuzzy"]["min_len"];
-	//	const size_t& max_len = key_json_data["fuzzy"]["max_len"];
-	//	const std::vector<std::string>& chars = key_json_data["fuzzy"]["chars"];
-	//}
 	print(file + " fail!");
 	return -114514;
 }
