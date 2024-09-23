@@ -88,6 +88,9 @@ int main(int argc, char* argv[]) {
 	program.add_argument("-e", "--exact")
 		.help("Exact matching.")
 		.flag();
+	program.add_argument("-f", "--file_name_matching")
+		.help("File name matching.")
+		.flag();
 	program.add_argument("-s", "--save_zip")
 		.help("Save the original compressed file after successful decompression.")
 		.flag();
@@ -102,6 +105,7 @@ int main(int argc, char* argv[]) {
 	}
 	const bool& flag_brute = program.get<bool>("-b");
 	const bool& flag_exact = program.get<bool>("-e");
+	const bool& flag_file_name_matching = program.get<bool>("-f");
 	const bool& flag_save_zip = program.get<bool>("-s");
 	const std::string& file = program.get<std::string>("file");
 	if (!std::filesystem::exists(file)) {
@@ -111,6 +115,21 @@ int main(int argc, char* argv[]) {
 	const std::string& one_file = get_one_file_from_zip(sevenzip_path, file);
 	std::ifstream key_json_file(key_json_path);
 	nlohmann::json key_json_data = nlohmann::json::parse(key_json_file);
+	if (flag_file_name_matching) {
+		const std::string& file_name = std::filesystem::path(file).filename().string();
+		const size_t& len = file_name.size();
+		for (size_t i = 0; i < len; ++i) {
+			for (size_t j = 1; j < len - i + 1; ++j) {
+				const std::string& password = file_name.substr(i, j);
+				if (try_password(sevenzip_path, file, password, one_file)) {
+					if (decompress_zip(sevenzip_path, password, file, flag_save_zip)) {
+						return 0;
+					}
+					return -114514;
+				}
+			}
+		}
+	}
 	if (flag_exact) {
 		const std::vector<std::string>& exact_passwords = key_json_data["exact"];
 		for (const auto& password : exact_passwords) {
